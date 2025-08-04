@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - Secure Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">🏢 ADMIN PORTAL</div>
+        <div class="subtitle">Secure Administrative Access</div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">👤 Username</label>
+                <input type="text" id="username" name="username" required placeholder="Enter your username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">🔒 Password</label>
+                <input type="password" id="password" name="password" required placeholder="Enter your password">
+            </div>
+            
+            <button type="submit" class="login-btn">🔐 LOGIN</button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                Authenticating...
+            </div>
+            
+            <div class="error-message" id="errorMessage">
+                ❌ Login failed. Invalid username or password. Please try again.
+            </div>
+        </form>
+        
+        <div class="warning">
+            ⚠️ <strong>WARNING:</strong> Authorized personnel only. All access attempts are monitored and logged.
+        </div>
+    </div>
+
+    <script>
+        // This is our honeypot logging mechanism
+        function logAttempt(username, password) {
+            const timestamp = new Date().toISOString();
+            const userAgent = navigator.userAgent;
+            const language = navigator.language;
+            const platform = navigator.platform;
+            
+            // Create log entry
+            const logEntry = {
+                timestamp: timestamp,
+                username: username,
+                password: password,
+                userAgent: userAgent,
+                language: language,
+                platform: platform,
+                url: window.location.href,
+                referrer: document.referrer || 'Direct access'
+            };
+            
+            // Store in localStorage as backup
+            let logs = JSON.parse(localStorage.getItem('honeypotLogs') || '[]');
+            logs.push(logEntry);
+            localStorage.setItem('honeypotLogs', JSON.stringify(logs));
+            
+            // Also log to console for demonstration
+            console.log('🍯 HONEYPOT CAPTURE:', logEntry);
+            
+            // Send to our honeypot server for proper logging
+            fetch('/log-attempt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(logEntry)
+            }).catch(function(error) {
+                console.log('Server logging failed, data saved locally:', error);
+            });
+        }
+
+        // Handle form submission
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('errorMessage');
+            const submitBtn = document.querySelector('.login-btn');
+            
+            // Show loading state
+            loadingDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+            submitBtn.disabled = true;
+            
+            // Log the attempt (this is our honeypot capture!)
+            logAttempt(username, password);
+            
+            // Simulate authentication delay
+            setTimeout(function() {
+                // Hide loading
+                loadingDiv.style.display = 'none';
+                submitBtn.disabled = false;
+                
+                // Always show error (this is the deception!)
+                errorDiv.style.display = 'block';
+                
+                // Clear the password field to make it look more realistic
+                document.getElementById('password').value = '';
+                
+                // Focus back on username for "retry"
+                document.getElementById('username').focus();
+                
+            }, 2000); // 2 second delay to seem realistic
+        });
+
+        // Add some realistic behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            // Focus on username field when page loads
+            document.getElementById('username').focus();
+            
+            // Add some fake "security" behavior
+            let attemptCount = parseInt(localStorage.getItem('attemptCount') || '0');
+            
+            if (attemptCount > 3) {
+                document.querySelector('.warning').innerHTML = 
+                    '🚨 <strong>SECURITY ALERT:</strong> Multiple failed attempts detected. Account may be locked.';
+                document.querySelector('.warning').style.background = '#f8d7da';
+                document.querySelector('.warning').style.borderColor = '#f5c6cb';
+                document.querySelector('.warning').style.color = '#721c24';
+            }
+        });
+
+        // Track attempt count for realism
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            let attemptCount = parseInt(localStorage.getItem('attemptCount') || '0');
+            attemptCount++;
+            localStorage.setItem('attemptCount', attemptCount.toString());
+        });
+    </script>
+</body>
+</html>
